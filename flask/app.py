@@ -1,17 +1,20 @@
-import re
 import numpy as np
-import pandas as pd
 import os
-import tensorflow as tf
-from flask import Flask, app, request, render_template
-from keras.models import Model
-from keras.preprocessing import image
-from tensorflow.python.ops.gen_array_ops import Concat
+from flask import Flask, request, render_template
 from keras.models import load_model
+from keras.utils import load_img, img_to_array
+
+app = Flask(__name__)
 
 # Loading the model
-model = load_model(r"vegetable_classification.h5", compile=False)
-app = Flask(__name__)
+model = None
+model_path = os.path.join(os.path.dirname(__file__), "vegetable_classification.h5")
+if os.path.exists(model_path):
+    model = load_model(model_path, compile=False)
+    print("Model loaded successfully!")
+else:
+    print(f"Warning: Model file not found at {model_path}")
+    print("Please train the model using the Jupyter notebook first.")
 
 # Default home page or route
 @app.route('/')
@@ -33,14 +36,17 @@ def logout():
 @app.route('/result', methods=["GET", "POST"])
 def res():
     if request.method == "POST":
+        if model is None:
+            return render_template('prediction.html', pred="Model not loaded! Please train the model first.")
+        
         f = request.files['image']
         basepath = os.path.dirname(__file__)  # Getting the current path i.e where app.py is present
         filepath = os.path.join(basepath, 'uploads', f.filename)  # Store anywhere in the system we can give image but we want that in uploads folder
         f.save(filepath)
         
         # Reading Image
-        img = tf.keras.utils.load_img(filepath, target_size=(150, 150))
-        img_arr = tf.keras.utils.img_to_array(img)
+        img = load_img(filepath, target_size=(299, 299))
+        img_arr = img_to_array(img)
         
         # Expanding Dimensions
         img_input = np.expand_dims(img_arr, axis=0)
